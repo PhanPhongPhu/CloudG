@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudmap</title>
+
+    <!-- FONT INTER -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div class="layout">
+
+    <!-- ================= HEADER NAVY ================= -->
+    <header class="topbar">
+
+        <button id="menuToggle" class="menu-btn" onclick="toggleSidebar()">
+            <i data-feather="menu"></i>
+        </button>
+
+        <div class="topbar-logo">
+            <img src="./assets/logo.png" alt="CloudMap Logo">
+        </div>
+
+        <div class="topbar-tools">
+            <div class="tool-item" onclick="openPanel('layerPanel')" data-label="Quản lý lớp">
+                <i data-feather="layers"></i>
+            </div>
+
+            <div class="tool-item" onclick="openPanel('analyticsPanel')" data-label="Phân tích">
+                <i data-feather="bar-chart-2"></i>
+            </div>
+
+            <div class="tool-item" onclick="openPanel('infoPanel')" data-label="Thông tin">
+                <i data-feather="info"></i>
+            </div>
+
+            <div class="tool-item" onclick="openPanel('aiPanel')" data-label="Chatbot">
+                <i data-feather="cpu"></i>
+            </div>
+            <div class="tool-item" onclick="openPanel('basemapGallery')" data-label="Bản đồ nền">
+                <i data-feather="map"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= SIDEBAR NAVY BLUR ================= -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <button id="sidebarToggle" onclick="toggleSidebar()" class="sidebar-toggle">
+                <i data-feather="chevron-left"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-section">Chức năng</div>
+
+        <ul class="sidebar-menu">
+            <li onclick="zoomToVietnam()">
+                <i data-feather="maximize-2"></i> Phóng to
+            </li>
+            <li onclick="toggleLabels()">
+                <i data-feather="tag"></i> Bật/tắt nhãn
+            </li>
+        </ul>
+
+        <div class="sidebar-section">Tìm kiếm</div>
+
+        <div class="search-box">
+            <i data-feather="search" class="search-icon"></i>
+            <input id="searchProvince" placeholder="Tìm tỉnh..." onkeyup="searchProvince()">
+        </div>
+
+        <ul id="searchResult" class="search-result"></ul>
+    </aside>
+
+    <!-- ================= MAP ================= -->
+    <main id="map">
+        <div id="mapLoading">Đang tải bản đồ...</div>
+    </main>
+
+    <!-- ===================== PANELS ======================== -->
+    <div id="panels">
+
+        <!-- ============ INFO PANEL ============ -->
+        <div id="infoPanel" class="panel info-panel">
+
+        <div class="info-header">
+            <div class="info-title-box">
+                <span id="info-title-text"></span>
+            </div>
+            <button id="editInfoBtn" class="edit-info-btn" onclick="toggleEditInfo()">
+                🛠
+            </button>
+        </div>
+
+        <div id="infoContent" class="hidden"></div>
+
+        <div id="info-default" class="info-default">
+            <i data-feather="map-pin"></i>
+            <p>Chọn một tỉnh/ thành để xem thông tin.</p>
+        </div>
+    </div>
+
+        <!-- ============ LAYER PANEL ============ -->
+        <div id="layerPanel" class="panel layer-panel">
+
+            <div class="layer-header">
+                <h3>Quản lý lớp</h3>
+                <label for="fileLoader" class="add-layer-btn">
+                    <span>＋</span> Thêm dữ liệu
+                </label>
+                <input type="file" id="fileLoader" hidden>
+            </div>
+
+            <div class="layer-section-title">Danh sách lớp</div>
+            <div id="layerList" class="layer-list"></div>
+
+        </div>
+
+        <!-- ============ AI PANEL ============ -->
+        <div id="aiPanel" class="panel ai-panel">
+
+            <div class="ai-header">
+                <i data-feather="cpu"></i>
+                <span>Chatbot</span>
+            </div>
+
+            <div id="aiMessages" class="ai-messages"></div>
+
+            <div class="ai-input-box">
+                <input id="aiInput" placeholder="Hỏi về tỉnh, dân số, diện tích...">
+                <button class="send-btn" onclick="askAI()">
+                    <i data-feather="send"></i>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- ============ ANALYTICS PANEL ============ -->
+        <div id="analyticsPanel" class="panel analytics-panel">
+
+            <h3>Phân tích dữ liệu</h3>
+
+            <div id="analytics-summary" class="analytics-box"></div>
+
+            <h4>Top 5 tỉnh theo diện tích</h4>
+            <table id="topArea" class="rank-table"></table>
+
+            <h4>Top 5 tỉnh theo dân số</h4>
+            <table id="topPopulation" class="rank-table"></table>
+
+            <h4>Biểu đồ diện tích</h4>
+            <canvas id="chartArea"></canvas>
+
+            <h4>Biểu đồ dân số</h4>
+            <canvas id="chartPopulation"></canvas>
+
+            <h4>Biểu đồ mật độ dân số</h4>
+            <canvas id="chartDensity"></canvas>
+
+        </div>
+
+        <!-- ============ BASEMAP PANEL ============ -->
+        <div id="basemapGallery" class="panel basemap-panel">
+            <h3>Bản đồ nền</h3>
+            <div class="bm-list">
+                <div class="bm-item" onclick="setBasemap('osm')">OSM</div>
+                <div class="bm-item" onclick="setBasemap('esri')">Vệ tinh Esri</div>
+                <div class="bm-item" onclick="setBasemap('google')">GMap</div>
+                <div class="bm-item" onclick="setBasemap('sat')">Vệ tinh GMap</div>
+                <div class="bm-item" onclick="setBasemap('hybrid')">Vệ tinh GMap 1</div>
+                <div class="bm-item" onclick="setBasemap('light')">Trống</div>
+            </div>
+        </div>
+
+    </div>
+    <!-- ================= END PANELS ================= -->
+
+</div> <!-- END LAYOUT -->
+
+<!-- ======================================== -->
+<!-- =============== JS ===================== -->
+<!-- ======================================== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="app.js"></script>
+
+<script>
+    feather.replace();
+</script>
+
+</body>
+</html>

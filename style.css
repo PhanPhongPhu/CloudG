@@ -1,0 +1,851 @@
+/* =========================================================
+   CLOUDMAP — NAVY UI FULL CSS
+   OPTION A — NAVY CLEAN MODERN
+   Version: FINAL BUILD
+========================================================= */
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+:root {
+    --navy: rgb(29, 34, 86);
+    --bg: #ffffff;
+    --text: #111;
+    --sub: #666;
+    --primary: #4EA8FF;
+    --border: #e1e2e8;
+    --shadow: 0 8px 24px rgba(0,0,0,0.14);
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    background: var(--bg);
+    overflow: hidden;
+}
+
+.layout {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+/* =========================================================
+   HEADER NAVY
+========================================================= */
+.topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 58px;
+
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+
+    background: var(--navy);
+    color: white;
+    z-index: 6000;
+}
+
+.menu-btn {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.topbar-logo img {
+    height: 55px;
+    margin-left: 14px;
+    filter: brightness(0) invert(1);
+}
+
+.topbar-tools {
+    margin-left: auto;
+    display: flex;
+    gap: 14px;
+}
+
+/* TOOL BUTTON */
+.tool-item {
+    width: 38px;
+    height: 38px;
+
+    background: rgba(255,255,255,0.13);
+    border-radius: 8px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+    transition: 0.22s;
+    position: relative;
+}
+
+.tool-item:hover {
+    background: rgba(255,255,255,0.22);
+}
+
+/* TOOLTIP */
+.tool-item::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -34px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+
+    padding: 6px 12px;
+    background: white;
+    color: #222;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.2s ease;
+    z-index: 9999;
+}
+
+.tool-item:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+.sidebar {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    width: 300px;
+    bottom: 20px;
+
+    background: rgba(255,255,255,0.32);
+    backdrop-filter: blur(18px);
+
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+
+    transition: all 0.3s ease;
+    z-index: 3000;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-120%);
+}
+
+.sidebar-toggle {
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.9);
+
+    cursor: pointer;
+    box-shadow: var(--shadow);
+
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-menu li {
+    margin-top: 12px;
+    padding: 8px 0;
+
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    cursor: pointer;
+    font-size: 15px;
+    transition: .2s;
+}
+
+.sidebar-menu li:hover {
+    transform: translateX(4px);
+    color: var(--primary);
+}
+
+/* =========================================================
+   SEARCH
+========================================================= */
+.search-box {
+    position: relative;
+    margin-top: 6px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 12px 10px 34px;
+
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.search-icon {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: var(--sub);
+}
+
+.search-result {
+    margin-top: 8px;
+    list-style: none;
+    padding: 0;
+
+    max-height: 160px;
+    overflow-y: auto;
+
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+/* =========================================================
+   MAP
+========================================================= */
+#map {
+    position: absolute;
+    top: 58px; left: 0; right: 0; bottom: 0;
+}
+
+#mapLoading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    padding: 12px 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+/* =========================================================
+   PANEL BASE
+========================================================= */
+#panels {
+    position: relative;
+    z-index: 4000;
+}
+
+.panel {
+    position: fixed;
+    top: 70px;
+    right: -350px;
+
+    width: 320px;
+    height: calc(100vh - 90px);
+
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(16px);
+
+    border-radius: 16px 0 0 16px;
+    padding: 18px;
+
+    box-shadow: var(--shadow);
+    transition: right 0.28s ease;
+
+    overflow-y: visible !important;  
+    overflow-x: visible !important;
+}
+
+.panel.open {
+    right: 20px;
+    z-index: 6000 !important;
+}
+/* =========================================================
+   INFO PANEL
+========================================================= */
+.info-panel {
+    padding: 20px;
+}
+
+.info-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.info-badges {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.info-badge {
+    background: rgba(223,148,35,0.35);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 15px;
+}
+
+.info-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.12);
+    margin: 10px 0;
+}
+
+/* =========================================================
+   LAYER PANEL
+========================================================= */
+.layer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.layer-header h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 20px;
+}
+
+.add-layer-btn {
+    padding: 6px 12px;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.22s;
+}
+
+.add-layer-btn:hover {
+    background: #3a92e4;
+    transform: translateY(-1px);
+}
+
+.layer-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 6px 0 12px;
+    color: #444;
+}
+
+/* =========================================================
+   LAYER LIST PRO (NEW)
+========================================================= */
+.layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.layer-item-pro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1;
+
+    padding: 12px 14px;
+    border-radius: 12px;
+
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(10px);
+
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+
+    font-size: 14px;
+}
+
+.layer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.layer-name {
+    font-weight: 600;
+}
+
+.layer-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.opacity-slider {
+    width: 60px;
+    z-index: 10;
+}
+
+.tool-btn {
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 6px;
+    transition: 0.15s ease;
+}
+
+.tool-btn:hover {
+    background: rgba(0,0,0,0.12);
+}
+
+/* =========================================================
+   LAYER MENU (⋮ submenu)
+========================================================= */
+.layer-menu {
+    position: fixed !important;
+    display: none;
+    flex-direction: column;
+
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+
+    padding: 6px 0;
+    min-width: 150px;
+
+    z-index: 999999 !important;
+}
+
+.layer-menu.open {
+    display: flex !important;
+}
+
+.layer-menu-item {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: .15s ease;
+}
+
+.layer-menu-item:hover {
+    background: rgba(0,0,0,0.07);
+}
+
+/* =========================================================
+   UPLOAD BOX
+========================================================= */
+.upload-container {
+    margin-top: 18px;
+    position: relative;
+}
+
+.upload-box {
+    margin-top: 4px;
+
+    width: 100%;
+    padding: 18px;
+
+    border-radius: 14px;
+    border: 2px dashed var(--primary);
+
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 6px;
+
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(10px);
+
+    cursor: pointer;
+    transition: 0.25s;
+    z-index: 0  ;
+}
+
+.upload-box:hover {
+    background: rgba(78,168,255,0.1);
+    transform: translateY(-1px);
+}
+
+.upload-box i {
+    color: var(--primary);
+}
+
+.upload-box input {
+    display: none;
+}
+/* =========================================================
+   AI PANEL (CHATBOT)
+========================================================= */
+.ai-panel {
+    padding: 0;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.35);
+    backdrop-filter: blur(10px);
+
+    border-bottom: 1px solid var(--border);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* CHAT WINDOW */
+.ai-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+/* CHAT BUBBLES */
+.chat-msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    line-height: 1.45;
+
+    box-shadow: var(--shadow);
+    font-size: 14px;
+}
+
+.chat-msg.user {
+    margin-left: auto;
+    background: #d9edff;
+}
+
+.chat-msg.bot {
+    background: white;
+    border-left: 4px solid var(--primary);
+}
+
+/* INPUT */
+.ai-input-box {
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+
+    background: rgba(255,255,255,0.6);
+    border-top: 1px solid var(--border);
+}
+
+.ai-input-box input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.send-btn {
+    width: 48px;
+    border-radius: 10px;
+    background: var(--primary);
+
+    border: none;
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.send-btn i {
+    color: white;
+}
+
+/* =========================================================
+   ANALYTICS PANEL
+========================================================= */
+.analytics-box {
+    padding: 12px;
+    background: rgba(255,255,255,0.7);
+
+    border-radius: 12px;
+    border: 1px solid var(--border);
+
+    margin-bottom: 16px;
+}
+
+.analytics-box .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+}
+
+.rank-table {
+    width: 100%;
+}
+
+.rank-table td {
+    padding: 6px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* =========================================================
+   BASEMAP PANEL
+========================================================= */
+.bm-list {
+    margin-top: 12px;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bm-item {
+    padding: 10px 6px;
+    text-align: center;
+
+    background: #f4f6fb;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.bm-item:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* =========================================================
+   PROVINCE LABELS
+========================================================= */
+.province-label {
+    background: none;
+    padding: 0px 0px;
+    border-radius: 8px;
+
+    font-weight: 600;
+    color: #1D2256;
+
+    border: 1px solid rgba(0,0,0,0.08);
+    backdrop-filter: blur(6px);
+
+    white-space: nowrap;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+
+/* =========================================================
+   PANEL ORDER PRIORITY – FIX LAYER OVERLAP
+========================================================= */
+#layerPanel      { z-index: 4100; }
+#aiPanel         { z-index: 4200; }
+#analyticsPanel  { z-index: 4300; }
+#infoPanel       { z-index: 4400; }
+#basemapGallery  { z-index: 4500; }
+
+/* Ensure topbar always above panels */
+.topbar {
+    z-index: 6000 !important;
+}
+
+/* Panel hover shadow */
+.panel:hover {
+    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+}
+
+/* Prevent tooltip clipping */
+.tool-item {
+    overflow: visible !important;
+}
+
+/* Prevent menu from being clipped by panels */
+.layer-menu {
+    overflow: visible !important;
+}
+
+/* =========================================================
+   FIX FOR PANEL SMOOTH SCROLLING & SAFARI COMPATIBILITY
+========================================================= */
+.panel {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* =========================================================
+   PLACEHOLDER (info panel)
+========================================================= */
+.info-default {
+    text-align: center;
+    padding-top: 40px;
+    opacity: .65;
+}
+
+.info-default i {
+    width: 44px;
+    height: 44px;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+/* =========================================================
+   SEARCH RESULT (hover)
+========================================================= */
+.search-result li:hover {
+    background: #eaf4ff;
+    color: var(--navy);
+}
+
+/* =========================================================
+   CUSTOM SCROLLBAR (all scroll areas)
+========================================================= */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* =========================================================
+   SIDE & PANEL SHADOW POLISH
+========================================================= */
+.sidebar, .panel, .layer-item-pro, .upload-box {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+}
+
+/* =========================================================
+   BUTTON POLISH
+========================================================= */
+.add-layer-btn:hover,
+.send-btn:hover,
+.bm-item:hover {
+    filter: brightness(1.1);
+}
+
+/* =========================================================
+   RESPONSIVE (TABLET & SMALL LAPTOPS)
+========================================================= */
+@media (max-width: 1280px) {
+
+    .sidebar {
+        width: 260px;
+    }
+
+    .panel {
+        width: 300px;
+    }
+}
+
+/* =========================================================
+   RESPONSIVE (MOBILE)
+========================================================= */
+@media (max-width: 768px) {
+
+    .sidebar {
+        top: 68px;
+        left: 10px;
+        width: 250px;
+    }
+
+    .panel {
+        width: 280px;
+        right: -300px;
+    }
+
+    .panel.open {
+        right: 10px;
+    }
+
+    .topbar-logo img {
+        height: 36px;
+    }
+}
+
+/* =========================================================
+   ULTRA SMALL DEVICES
+========================================================= */
+@media (max-width: 480px) {
+
+    .sidebar {
+        width: 220px;
+    }
+
+    .panel {
+        width: 260px;
+        right: -280px;
+    }
+
+    .panel.open {
+        right: 10px;
+    }
+
+    .tool-item {
+        width: 34px;
+        height: 34px;
+    }
+}
+#menuToggle svg {
+    stroke: #fff !important;
+    width: 26px;
+    height: 26px;
+}
+.info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.edit-info-btn {
+    background: #f0f0f0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.edit-info-btn:hover {
+    background: var(--primary);
+    color: white;
+}
