@@ -5,6 +5,7 @@ console.log("CloudMap NAVY FULL AI — app.js loaded");
 
 const map = L.map("map", { zoomControl: false }).setView([15.5, 108], 6);
 
+let renameMap = {};
 let ACTIVE_LAYER = null;
 let LABEL_LAYER = null;
 let USER_LAYERS = [];
@@ -63,28 +64,72 @@ let VN_GEOJSON = null;
 let VN_LAYER = null;
 let provinceCentroids = {};
 
+function setLoadingProgress(percent, text = "") {
+    const bar = document.getElementById("cloudProgressBar");
+    const label = document.getElementById("cloudLoadingText");
+    bar.style.width = percent + "%";
+
+    if (text) label.innerText = text;
+}
+
+
 async function loadVietnam() {
     try {
-        const res = await fetch("https://dl.dropboxusercontent.com/scl/fi/eqp8i6o5nytqas19zedk5/ToanQuoc.geojson?rlkey=y5b2ictgxcfz41n80mgobr5qi");
+        setLoadingProgress(10, "Đang tải dữ liệu Toàn Quốc…");
+
+        const res = await fetch("https://data.phongphu-hcm-2003.workers.dev/data?file=toanquoc");
+        setLoadingProgress(30, "Đang xử lý dữ liệu Toàn Quốc…");
+
         VN_GEOJSON = await res.json();
+        setLoadingProgress(50, "Đang dựng lớp biên giới…");
 
         VN_LAYER = L.geoJSON(VN_GEOJSON, {
             style: styleProvince,
             onEachFeature: provinceEvents
         }).addTo(map);
 
+        setLoadingProgress(65, "Đang vẽ nhãn các tỉnh…");
+        drawLabels(false);
+
+        setLoadingProgress(80, "Đang căn chỉnh bản đồ…");
         map.fitBounds(VN_LAYER.getBounds());
-        drawLabels(false); //
 
+        setLoadingProgress(100, "Hoàn thành!");
 
-        document.getElementById("mapLoading").style.display = "none";
+        // Ẩn loading sau 0.5 giây cho mượt
+        setTimeout(() => {
+            document.getElementById("cloudLoader").classList.add("hidden");
+        }, 500);
+
     } catch (err) {
-        alert("Không load được ToanQuoc.geojson từ Dropbox");
+        alert("Không load được ToanQuoc từ Cloudflare Worker");
         console.error(err);
     }
 }
-
 loadVietnam();
+
+
+let LN_GEOJSON = null;
+
+async function loadLamNghiep() {
+    try {
+        setLoadingProgress(85, "Đang tải dữ liệu Lâm nghiệp…");
+
+        const res = await fetch("https://data.phongphu-hcm-2003.workers.dev/data?file=lamnghiep");
+        setLoadingProgress(92, "Đang xử lý Lâm nghiệp…");
+
+        LN_GEOJSON = await res.json();
+
+        console.log("LamNghiep loaded:", LN_GEOJSON);
+        setLoadingProgress(100, "Hoàn thành!");
+
+    } catch (err) {
+        console.error("Không load được LamNghiep.geojson", err);
+    }
+}
+
+loadLamNghiep();
+
 /* ============================
    SEARCH — TÌM TỈNH (cải tiến)
    ============================ */
@@ -160,6 +205,7 @@ document.addEventListener("click", (e) => {
     }
 });
 
+
 /* ==========================================================
    4. IMPORTER — GEOJSON + SHP.zip + KML + KMZ
 ========================================================== */
@@ -183,33 +229,66 @@ async function handleUpload(evt) {
     }
 }
 
-function addUserLayer(layer, name) {
-    USER_LAYERS.push({ layer, name });
+function addUserLayer(layer, name, gj) {
+    let type = "Unknown";
+    try {
+        type = gj.features?.[0]?.geometry?.type || "Unknown";
+    } catch {}
+
+    USER_LAYERS.push({
+        layer,
+        name,
+        type,
+        gj
+    });
+
     layer.addTo(map);
     refreshLayerList();
 }
 
+
+
+
 /* ======== GeoJSON ======== */
 function loadGeoJSONFile(file) {
     const reader = new FileReader();
-    reader.onload = () => {
+
+    reader.onload = async () => {   // <--- FIX
         const gj = JSON.parse(reader.result);
-        const layer = L.geoJSON(gj, { style: userStyle }).addTo(map);
-        addUserLayer(layer, file.name);
+
+        // AI rename
+        const fields = Object.keys(gj.features[0].properties || {});
+        renameMap = await aiRenameFields(fields);
+
+        const layer = L.geoJSON(gj, {
+            style: userStyle,
+            onEachFeature: universalPopup
+        }).addTo(map);
+
+        addUserLayer(layer, file.name, gj);
         map.fitBounds(layer.getBounds());
     };
+
     reader.readAsText(file);
 }
 
 /* ======== KML ======== */
 function loadKMLFile(file) {
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
         const parser = new DOMParser();
         const kml = parser.parseFromString(reader.result, "text/xml");
         const converted = toGeoJSON.kml(kml);
-        const layer = L.geoJSON(converted, { style: userStyle }).addTo(map);
-        addUserLayer(layer, file.name);
+
+        const fields = Object.keys(converted.features[0].properties || {});
+        renameMap = await aiRenameFields(fields);
+
+        const layer = L.geoJSON(converted, {
+            style: userStyle,
+            onEachFeature: universalPopup
+        }).addTo(map);
+
+        addUserLayer(layer, file.name, converted);
         map.fitBounds(layer.getBounds());
     };
     reader.readAsText(file);
@@ -223,21 +302,38 @@ function loadKMZFile(file) {
         const kmlText = await zip.file(/\.kml$/i)[0].async("string");
         const xml = new DOMParser().parseFromString(kmlText, "text/xml");
         const converted = toGeoJSON.kml(xml);
-        const layer = L.geoJSON(converted, { style: userStyle }).addTo(map);
-        addUserLayer(layer, file.name);
+
+        const fields = Object.keys(converted.features[0].properties || {});
+        renameMap = await aiRenameFields(fields);
+
+        const layer = L.geoJSON(converted, {
+            style: userStyle,
+            onEachFeature: universalPopup
+        }).addTo(map);
+
+        addUserLayer(layer, file.name, converted);
         map.fitBounds(layer.getBounds());
     };
     reader.readAsArrayBuffer(file);
 }
 
+
 /* ======== SHP.zip ======== */
 function loadSHPFile(file) {
-    shp(file).then(gj => {
-        const layer = L.geoJSON(gj, { style: userStyle }).addTo(map);
-        addUserLayer(layer, file.name);
+    shp(file).then(async gj => {
+        const fields = Object.keys(gj.features[0].properties || {});
+        renameMap = await aiRenameFields(fields);
+
+        const layer = L.geoJSON(gj, {
+            style: userStyle,
+            onEachFeature: universalPopup
+        }).addTo(map);
+
+        addUserLayer(layer, file.name, gj);
         map.fitBounds(layer.getBounds());
     });
 }
+
 /* ==========================================================
    5. STYLE ENGINE (Auto symbol)
 ========================================================== */
@@ -261,6 +357,8 @@ function userStyle() {
     };
 }
 
+
+
 /* ==========================================================
    6. FEATURE EVENTS — HOVER + CLICK
 ========================================================== */
@@ -276,7 +374,7 @@ function provinceEvents(f, layer) {
 
                 // Giữ opacity theo user
                 const opt = layer.options;
-                if (opt.opacity) {
+                if (opt.opacity !== undefined) {
                     layer.setStyle({
                         opacity: opt.opacity,
                         fillOpacity: opt.fillOpacity
@@ -393,6 +491,126 @@ function analyzeDataset() {
 
     highlightProvince(topArea[0].ten_tinh);
 }
+
+function analyzeUserDataset(gj) {
+
+    if (!gj || !gj.features || !gj.features.length) {
+        document.getElementById("analyticsPanel").innerHTML =
+            "<div style='padding:10px;'>Dataset không có thuộc tính.</div>";
+        return;
+    }
+
+    const rows = gj.features.map(f => f.properties || {});
+    const fields = Object.keys(rows[0] || {});
+
+    // Các field không nên thống kê
+    const skip = ["id", "fid", "objectid", "shape_length", "shape_area", "stt"];
+
+    let numericStats = [];
+    let textStats = [];
+
+    fields.forEach(key => {
+
+        const keyLower = key.toLowerCase();
+        if (skip.includes(keyLower)) return;
+
+        const valuesRaw = rows.map(r => r[key]).filter(v => v !== null && v !== undefined);
+
+        if (!valuesRaw.length) return;
+
+        const allNumeric = valuesRaw.every(v => typeof v === "number");
+
+        // ======= FIELD DẠNG SỐ =======
+        if (allNumeric) {
+            const sum = valuesRaw.reduce((s, x) => s + x, 0);
+            const avg = sum / valuesRaw.length;
+            const min = Math.min(...valuesRaw);
+            const max = Math.max(...valuesRaw);
+
+            numericStats.push({
+                key,
+                sum,
+                avg,
+                min,
+                max
+            });
+        }
+
+        // ======= FIELD DẠNG CHUỖI =======
+        else {
+            const freq = {};
+            valuesRaw.forEach(v => freq[v] = (freq[v] || 0) + 1);
+            const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+
+            textStats.push({
+                key,
+                topValue: top[0],
+                topCount: top[1]
+            });
+        }
+    });
+
+    // ======= RENDER HTML =======
+    let html = `
+        <div style="padding:10px;">
+            <div style="font-size:18px;font-weight:600;margin-bottom:10px;">
+                Thống kê Dataset
+            </div>
+    `;
+
+    // ----------------------------
+    // Phần dạng số
+    // ----------------------------
+    if (numericStats.length) {
+        html += `
+            <div style="font-weight:600;margin-top:10px;margin-bottom:4px;">
+                📊 Các trường dạng số
+            </div>
+        `;
+
+        numericStats.forEach(s => {
+            const label = renameMap[s.key] || s.key.replace(/_/g, " ");
+            html += `
+                <div style="padding:6px 0;">
+                    <div style="font-weight:600">${label}</div>
+                    <div>– Tổng: ${s.sum.toLocaleString()}</div>
+                    <div>– Trung bình: ${s.avg.toLocaleString()}</div>
+                    <div>– Nhỏ nhất: ${s.min.toLocaleString()}</div>
+                    <div>– Lớn nhất: ${s.max.toLocaleString()}</div>
+                </div>
+                <hr>
+            `;
+        });
+    }
+
+    // ----------------------------
+    // Phần dạng chuỗi
+    // ----------------------------
+    if (textStats.length) {
+        html += `
+            <div style="font-weight:600;margin-top:10px;margin-bottom:4px;">
+                🔠 Các trường dạng chuỗi
+            </div>
+        `;
+
+        textStats.forEach(s => {
+            const label = renameMap[s.key] || s.key.replace(/_/g, " ");
+            html += `
+                <div style="padding:6px 0;">
+                    <div style="font-weight:600">${label}</div>
+                    <div>– Phổ biến nhất: ${s.topValue} (${s.topCount} lần)</div>
+                </div>
+                <hr>
+            `;
+        });
+    }
+
+    html += "</div>";
+
+    document.getElementById("analyticsPanel").innerHTML = html;
+}
+
+
 /* ==========================================================
    9. AI ENGINE — GROQ (3 MODES)
 ========================================================== */
@@ -406,14 +624,32 @@ async function askAI() {
 
     try {
         const provinceData = VN_GEOJSON
-            ? VN_GEOJSON.features.map(f => f.properties)
-            : [];
+        ? VN_GEOJSON.features.map(f => ({
+            ten_tinh: f.properties.ten_tinh,
+            dtich_km2: f.properties.dtich_km2,
+            dan_so: f.properties.dan_so,
+            matdo_km2: f.properties.matdo_km2
+            }))
+        : [];
+
+        const lamnghiepData = LN_GEOJSON
+        ? LN_GEOJSON.features.slice(0, 200).map(f => ({   // hạn chế 200 feature
+            ten: f.properties.ten || f.properties.name,
+            loai: f.properties.loai || f.properties.type,
+            dientich: f.properties.dientich || f.properties.area
+            }))
+        : [];
 
         const systemPrompt = `
-Bạn tên là CloudMap — trợ lý thông tin các tỉnh Việt Nam.
+Bạn tên là CloudMap — trợ lý thông tin các tỉnh/thành Việt Nam.
 
-Dưới đây là danh sách tỉnh và thông số:
+Dữ liệu tỉnh/thành (tên, diện tích, dân số, mật độ):
 ${JSON.stringify(provinceData)}
+
+Dữ liệu lâm nghiệp (tối giản 200 đối tượng):
+${JSON.stringify(lamnghiepData)}
+
+
 
 QUY TẮC TRẢ LỜI:
 - Không nhắc đến GeoJSON, JSON, field, thuộc tính, layer…
@@ -421,8 +657,10 @@ QUY TẮC TRẢ LỜI:
 - Chỉ trả lời nội dung cuối cùng: “Hà Nội có dân số…”
 - Dùng ngôn ngữ đời thường.
 - Nếu bị hỏi cách hoạt động:
-  “Tôi được xây dựng để cung cấp thông tin đã chuẩn hoá về các tỉnh Việt Nam.”
+  “Tôi được xây dựng để cung cấp thông tin đã chuẩn hoá về các tỉnh/thành Việt Nam.”
+- Nếu câu trả lời liên quan đến một tỉnh/thành cụ thể, hãy thêm dòng [map-focus: TÊN_TỈNH] ở cuối.
 `;
+
 
         const res = await fetch("https://chatbot.phongphu-hcm-2003.workers.dev/", {
             method: "POST",
@@ -437,7 +675,21 @@ QUY TẮC TRẢ LỜI:
             })
         });
 
-        const data = await res.json();
+        if (!res.ok) {
+    addChat("bot", "⚠️ AI server đang gặp lỗi (mã " + res.status + ").");
+    console.error("AI error:", res.status);
+    return;
+        }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (err) {
+            addChat("bot", "⚠️ Lỗi đọc dữ liệu từ AI server.");
+            console.error("JSON parse fail:", err);
+            return;
+        }
+
         console.log("Worker response:", data);
 
         if (!data.choices || !data.choices[0]) {
@@ -445,10 +697,22 @@ QUY TẮC TRẢ LỜI:
             return;
         }
 
-        addChat("bot", data.choices[0].message.content);
+        addChat("bot",
+    data.choices[0].message.content.replace(/\[map-focus:.*?\]/, "").trim());
 
     } catch (err) {
         console.error(err);
+        const fullText = data.choices[0].message.content;
+        const focusMatch = fullText.match(/\[map-focus:\s*(.+?)\]/i);
+
+        if (focusMatch) {
+            const provinceName = focusMatch[1].trim();
+
+            // Delay nhẹ để tin nhắn hiển thị trước
+            setTimeout(() => {
+                focusProvinceByName(provinceName);
+            }, 250);
+        }
         addChat("bot", "⚠️ Không thể kết nối server AI.");
     }
 }
@@ -479,6 +743,22 @@ document.getElementById("aiInput").addEventListener("keydown", function(e) {
         askAI();
     }
 });
+
+/* ==========================================================
+   10. ICONS FOR GEOMETRY TYPES
+========================================================== */
+function getGeometryIcon(type) {
+    switch (type) {
+        case "Point":
+        case "MultiPoint": return "📍";
+        case "LineString":
+        case "MultiLineString": return "🛣️";
+        case "Polygon":
+        case "MultiPolygon": return "🟦";
+        default: return "📄";
+    }
+}
+
 /* ==========================================================
    10. LAYER MANAGER — UI SYNC
 ========================================================== */
@@ -497,7 +777,8 @@ function refreshLayerList() {
                        ${map.hasLayer(obj.layer) ? "checked" : ""} 
                        class="layer-toggle" 
                        data-i="${i}">
-                <span class="layer-name">${obj.name}</span>
+                <span class="layer-icon">${getGeometryIcon(obj.type)}</span>
+                <span class="layer-name" title="${obj.name}">${obj.name}</span>
             </div>
 
             <div class="layer-tools">
@@ -510,21 +791,14 @@ function refreshLayerList() {
                 <span class="tool-btn layer-menu-btn" 
                       data-i="${i}" 
                       title="Tùy chọn">⋮</span>
-            </div>
-
-            <div class="layer-menu" id="layerMenu-${i}">
-                <div class="layer-menu-item" data-act="style" data-i="${i}">🎨 Đổi màu</div>
-                <div class="layer-menu-item" data-act="zoom"  data-i="${i}">🔍 Zoom đến lớp</div>
-                <div class="layer-menu-item" data-act="export" data-i="${i}">💾 Xuất GeoJSON</div>
-                <div class="layer-menu-item" data-act="rename" data-i="${i}">✏️ Đổi tên</div>
-                <div class="layer-menu-item" data-act="delete" data-i="${i}">❌ Xóa lớp</div>
-            </div>
-        `;
+            </div>`;
 
         list.appendChild(div);
     });
 
     bindLayerTools();
+    bindLayerToolsBubble();
+
 }
 
 
@@ -582,6 +856,112 @@ document.addEventListener("click", (e) => {
     }
 });
 
+/* =====================================================
+   CONTEXT BUBBLE MENU — NEW UI (căn phải)
+===================================================== */
+
+let OPEN_BUBBLE = null;
+
+function closeBubble() {
+    if (OPEN_BUBBLE) {
+        OPEN_BUBBLE.remove();
+        OPEN_BUBBLE = null;
+    }
+}
+
+// Đóng khi click ra ngoài
+document.addEventListener("click", function(e) {
+    if (OPEN_BUBBLE && !e.target.closest(".layer-menu-bubble") 
+        && !e.target.closest(".layer-menu-btn"))
+        closeBubble();
+});
+
+// Bổ sung menu mới cho layer
+function bindLayerToolsBubble() {
+    document.querySelectorAll(".layer-menu-btn").forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+
+            // Nếu menu đang mở và thuộc đúng nút này → đóng
+            if (OPEN_BUBBLE && OPEN_BUBBLE.dataset.from === btn.dataset.i) {
+                closeBubble();
+                return;
+            }
+
+            // Nếu đang mở menu của nút khác → đóng trước
+            closeBubble();
+
+            const i = Number(btn.dataset.i);
+            const rect = btn.getBoundingClientRect();
+
+            const bubble = document.createElement("div");
+            bubble.className = "layer-menu-bubble";
+            bubble.dataset.from = btn.dataset.i;  // <=== đánh dấu để toggle
+
+            bubble.innerHTML = `
+            <div class="layer-menu-arrow"></div>
+            
+            <div class="layer-menu-bubble-item" data-act="stats" data-i="${i}" title="Thống kê dữ liệu">
+                <span class="gicon">bar_chart</span>
+            </div>
+
+            <div class="layer-menu-bubble-item" data-act="style" data-i="${i}" title="Đổi màu">
+                <span class="gicon">palette</span>
+            </div>
+
+            <div class="layer-menu-bubble-item" data-act="zoom" data-i="${i}" title="Phóng to lớp">
+                <span class="gicon">zoom_in</span>
+            </div>
+
+            <div class="layer-menu-bubble-item" data-act="export" data-i="${i}" title="Xuất GeoJSON">
+                <span class="gicon">save</span>
+            </div>
+
+            <div class="layer-menu-bubble-item" data-act="rename" data-i="${i}" title="Đổi tên">
+                <span class="gicon">edit</span>
+            </div>
+
+            <div class="layer-menu-bubble-item" data-act="delete" data-i="${i}" title="Xóa lớp">
+                <span class="gicon">delete</span>
+            </div>
+
+            `;
+            document.body.appendChild(bubble);
+
+            // vị trí bubble
+            bubble.style.top  = (rect.bottom + 6) + "px";
+            bubble.style.left = (rect.right - bubble.offsetWidth + 4) + "px";
+
+            requestAnimationFrame(() => bubble.classList.add("open"));
+            OPEN_BUBBLE = bubble;
+            // LAYER INDEX
+            const obj = USER_LAYERS[i];
+
+            /* Xử lý chọn màu tự do */
+            const custom = bubble.querySelector(".color-custom");
+            if (custom) {
+                custom.oninput = (e) => {
+                    const color = e.target.value;
+
+                    obj.layer.setStyle({
+                        color,
+                        fillColor: color
+                    });
+
+                    obj.color = color;
+                };
+            }
+
+            bubble.querySelectorAll(".layer-menu-bubble-item").forEach(item => {
+                item.onclick = () => {
+                    const act = item.dataset.act;
+                    layerToolAction(act, i);
+                    closeBubble();
+                };
+            });
+        };
+    });
+}
 
 /* ==========================================================
    12. LAYER ACTIONS
@@ -633,6 +1013,10 @@ function layerToolAction(act, i) {
         case "zoom":
             map.fitBounds(obj.layer.getBounds());
             break;
+        case "stats":
+            openPanel("analyticsPanel");
+            analyzeUserDataset(USER_LAYERS[i].gj);
+            break;
 
         case "export":
             exportLayer(obj.name, obj.layer.toGeoJSON());
@@ -677,7 +1061,7 @@ function exportLayer(name, data) {
 ========================================================== */
 
 function drawLabels() {
-    LABEL_LAYER = L.layerGroup(); // ❌ KHÔNG addTo(map) ở đây
+    LABEL_LAYER = L.layerGroup();
 
     VN_GEOJSON.features.forEach(f => {
         const c = turf.centroid(f).geometry.coordinates;
@@ -827,3 +1211,208 @@ function saveEditInfo() {
     // cập nhật lại panel
     updateInfoPanel(ACTIVE_EDIT_DATA);
 }
+function universalPopup(f, layer) {
+
+    const p = f.properties || {};
+
+    // Field cần bỏ qua
+    const skip = [
+        "OBJECTID", "FID", "Shape_Length", "Shape_Area",
+        "Shape__Length", "Shape__Area", "ID"
+    ];
+
+    // Tìm tiêu đề thông minh
+    const title = 
+        p.ten || p.name || p.ten_tinh || p.title || p.label
+        || p.Ten || p.Names || "Thông tin đối tượng";
+
+    let html = `
+    <div style="
+        font-family: Inter, sans-serif;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: white;
+        min-width: 240px;
+        max-width: 320px;
+        max-height: 320px;
+        overflow-y: auto;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+        line-height: 1.5;
+    ">
+        <div style="font-size: 17px; font-weight: 600; margin-bottom: 6px;">
+            ${title}
+        </div>
+        <div style="border-bottom: 1px solid #eee; margin-bottom: 8px;"></div>
+    `;
+
+    // Render phần thuộc tính
+    for (let key in p) {
+
+        if (!p[key] && p[key] !== 0) continue;
+        if (skip.includes(key)) continue;
+        
+
+        const label = renameMap[key] || key.replace(/_/g, " ");
+
+        const value = p[key];
+
+        // FORMAT:
+        let displayValue = value;
+
+        // 1) Nếu là số → thêm dấu phẩy
+        if (typeof value === "number") {
+            displayValue = value.toLocaleString();
+        }
+
+        // 2) Nếu là URL ảnh
+        if (typeof value === "string" && value.startsWith("http") && /\.(jpg|png|jpeg)$/i.test(value)) {
+            displayValue = `<img src="${value}" style="width:100%; border-radius:8px; margin-top:4px;">`;
+        }
+
+        // 3) Nếu là URL website
+        if (typeof value === "string" && value.startsWith("http") && !/\.(jpg|png|jpeg)$/i.test(value)) {
+            displayValue = `<a href="${value}" target="_blank">${value}</a>`;
+        }
+
+        html += `
+            <div style="font-size: 14px; margin-bottom: 4px;">
+                <strong>${label}:</strong> ${displayValue}
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+
+    layer.bindPopup(html);
+}
+
+function focusProvinceByName(name) {
+    if (!VN_LAYER || !VN_GEOJSON) return;
+
+    VN_LAYER.eachLayer(layer => {
+        const p = layer.feature.properties;
+        if (!p) return;
+
+        // So khớp tên tỉnh
+        if (p.ten_tinh.toLowerCase() === name.toLowerCase()) {
+
+            // Highlight
+            layer.setStyle({
+                weight: 4,
+                color: "#FFD700",
+                fillOpacity: 0.75
+            });
+
+            // Zoom
+            map.fitBounds(layer.getBounds(), {
+                padding: [30, 30]
+            });
+
+            // Cập nhật panel info (nếu thích)
+            updateInfoPanel(p);
+            openPanel("infoPanel", true);
+        }
+    });
+}
+/* ==========================================================
+   20. GLOBAL VARIABLES
+========================================================== */
+async function aiRenameFields(fields) {
+    try {
+        const prompt = `
+Bạn là AI chuyên đổi tên trường dữ liệu GIS sang Tiếng Việt có dấu, đẹp và dễ hiểu.
+Hãy đổi tên các trường sang Tiếng Việt có dấu, đẹp và dễ hiểu.
+Nếu tên trường là tiếng Anh thì giữ nguyên nghĩa khi dịch.
+tru_so → trụ sở
+dtich_km2 → diện tích (km²)
+dan_so → dân số
+matdo_km2 → mật độ (người/km²)
+ten_tinh → tên tỉnh
+quy_mo → quy mô
+sap_nhap → sáp nhập
+
+QUY TẮC ĐẶT TÊN:
+Nếu tên trường đã rõ nghĩa thì chỉ cần thêm dấu và viết hoa đúng cách.
+Nếu tên trường khó hiểu, hãy dựa vào ngữ cảnh để đặt tên phù hợp.
+Xem xét ngữ cảnh dữ liệu GIS về địa lý, hành chính, dân số, địa danh ở Việt Nam.
+Kiểm tra kỹ từng tên trường để tránh nhầm lẫn.
+Kiểm tra thuộc tính dữ liệu và ngữ cảnh để đặt tên chính xác.
+Chỉ trả JSON thuần, KHÔNG dùng \`\`\` hay markdown.
+Danh sách trường:
+${JSON.stringify(fields)}
+        `;
+
+        const res = await fetch("https://chatbot.phongphu-hcm-2003.workers.dev/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "Bạn là AI chuẩn hoá tên trường dữ liệu GIS. Chỉ trả về JSON thuần."},
+                    { role: "user", content: prompt }
+                ]
+            })
+        });
+
+        const data = await res.json();
+        let text = data.choices[0].message.content;
+
+        // LOẠI BỎ ```json ... ``` TRONG TRẢ LỜI CỦA AI
+        text = text.replace(/```json/gi, "")
+                   .replace(/```/g, "")
+                   .trim();
+
+        return JSON.parse(text);
+
+    } catch (err) {
+        console.error("AI rename error:", err);
+        return {};
+    }
+}
+let vnVisible = true;
+
+document.querySelector(".vn-toggle").onclick = () => {
+    vnVisible = !vnVisible;
+
+    if (vnVisible) {
+        map.addLayer(VN_LAYER);
+        document.querySelector(".vn-toggle").innerText = "visibility";
+    } else {
+        map.removeLayer(VN_LAYER);
+        document.querySelector(".vn-toggle").innerText = "visibility_off";
+    }
+};
+document.querySelector(".vn-border").onclick = () => {
+    const pick = document.createElement("input");
+    pick.type = "color";
+    pick.style.position = "fixed";
+    pick.style.left = "-9999px";
+
+    pick.oninput = (e) => {
+        VN_LAYER.setStyle({ color: e.target.value });
+    };
+
+    document.body.appendChild(pick);
+    pick.click();
+};
+document.querySelector(".vn-fill").onclick = () => {
+    const pick = document.createElement("input");
+    pick.type = "color";
+    pick.style.position = "fixed";
+    pick.style.left = "-9999px";
+
+    pick.oninput = (e) => {
+        VN_LAYER.setStyle({ fillColor: e.target.value });
+    };
+
+    document.body.appendChild(pick);
+    pick.click();
+};
+document.querySelector(".vn-weight").onclick = () => {
+    const amount = prompt("Độ dày viền (1–10):", 2);
+    const w = Number(amount);
+
+    if (!isNaN(w) && w > 0) {
+        VN_LAYER.setStyle({ weight: w });
+    }
+};
+
