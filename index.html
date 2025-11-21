@@ -7,6 +7,7 @@
 
     <!-- FONT INTER -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@200;300;400&display=swap" rel="stylesheet" />
 
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -19,10 +20,23 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
+    
 </head>
 
 <body>
-<div class="layout">
+    <div id="cloudLoader">
+    <img src="./assets/logo.png" class="cloud-logo">
+
+    <div class="cloud-progress">
+        <div class="cloud-progress-bar" id="cloudProgressBar"></div>
+    </div>
+
+    <div class="cloud-loading-text" id="cloudLoadingText">
+        Đang tải bản đồ…
+    </div>
+    </div>
+
+    <div class="layout">
 
     <!-- ================= HEADER NAVY ================= -->
     <header class="topbar">
@@ -37,23 +51,23 @@
 
         <div class="topbar-tools">
             <div class="tool-item" onclick="openPanel('layerPanel')" data-label="Quản lý lớp">
-                <i data-feather="layers"></i>
+                <span class="gicon">layers</span>
             </div>
 
             <div class="tool-item" onclick="openPanel('analyticsPanel')" data-label="Phân tích">
-                <i data-feather="bar-chart-2"></i>
+                <span class="gicon">monitoring</span>
             </div>
 
             <div class="tool-item" onclick="openPanel('infoPanel')" data-label="Thông tin">
-                <i data-feather="info"></i>
-            </div>
-
-            <div class="tool-item" onclick="openPanel('aiPanel')" data-label="Chatbot">
-                <i data-feather="cpu"></i>
+                <span class="gicon">info</span>
             </div>
             <div class="tool-item" onclick="openPanel('basemapGallery')" data-label="Bản đồ nền">
-                <i data-feather="map"></i>
+                <span class="gicon">map</span>
             </div>
+            <div class="tool-item" onclick="openPanel('aiPanel')" data-label="Chatbot">
+                <span class="gicon">smart_toy</span>
+            </div>
+
         </div>
     </header>
 
@@ -65,7 +79,7 @@
             </button>
         </div>
 
-        <div class="sidebar-section">Chức năng</div>
+        <div class="sidebar-section"><h3>Chức năng</h3></div>
 
         <ul class="sidebar-menu">
             <li onclick="zoomToVietnam()">
@@ -126,6 +140,19 @@
             </div>
 
             <div class="layer-section-title">Danh sách lớp</div>
+            <div class="layer-item vn-default">
+            <div class="layer-title">
+                <span class="gicon">public</span>
+                <span class="layer-name">Toàn Quốc</span>
+            </div>
+
+            <div class="layer-tools">
+                <span class="gicon vn-toggle" title="Bật/Tắt lớp">visibility</span>
+                <span class="gicon vn-border" title="Đổi màu viền">colorize</span>
+                <span class="gicon vn-fill" title="Đổi màu nền">format_paint</span>
+                <span class="gicon vn-weight" title="Độ dày viền">line_weight</span>
+            </div>
+            </div>
             <div id="layerList" class="layer-list"></div>
 
         </div>
@@ -134,9 +161,10 @@
         <div id="aiPanel" class="panel ai-panel">
 
             <div class="ai-header">
-                <i data-feather="cpu"></i>
+                <i data-feather="codepen"></i>
                 <span>Chatbot</span>
             </div>
+
 
             <div id="aiMessages" class="ai-messages"></div>
 
